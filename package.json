@@ -1,0 +1,16 @@
+{
+  "name": "rpc-trace-timetravel",
+  "version": "1.0.0",
+  "description": "RPC调用链路追踪模拟器 - 带时间旅行调试功能",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5"
+  }
+}

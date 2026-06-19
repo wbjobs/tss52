@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPC 调用链路追踪 - 时间旅行调试器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+.header {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  padding: 24px 32px;
+  border-bottom: 1px solid #475569;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header .subtitle {
+  color: #94a3b8;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.timetravel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 12px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(168, 85, 247, 0); }
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.panel {
+  background: #1e293b;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  background: linear-gradient(180deg, #38bdf8, #818cf8);
+  border-radius: 2px;
+}
+
+.simulate-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.form-group label {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.form-group input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  font-family: 'Courier New', monospace;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background: #475569;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.btn-timetravel {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: white;
+}
+
+.btn-timetravel:hover {
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);
+}
+
+.query-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.query-section input {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+}
+
+.query-section input:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+
+.stat-card:nth-child(1)::before { background: #38bdf8; }
+.stat-card:nth-child(2)::before { background: #34d399; }
+.stat-card:nth-child(3)::before { background: #fbbf24; }
+.stat-card:nth-child(4)::before { background: #c084fc; }
+
+.stat-label {
+  font-size: 12px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #f1f5f9;
+  font-family: 'Courier New', monospace;
+}
+
+.stat-unit {
+  font-size: 14px;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.trace-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.trace-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #334155;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.trace-item:last-child { border-bottom: none; }
+.trace-item:hover { background: #334155; }
+.trace-item.active { background: rgba(56, 189, 248, 0.15); }
+
+.trace-item-id {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #38bdf8;
+}
+
+.trace-item-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-running {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state-text {
+  font-size: 15px;
+}
+
+.timeline-container {
+  margin-top: 20px;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #334155;
+}
+
+.timeline-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline-info-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.timeline-info-meta {
+  font-size: 12px;
+  color: #94a3b8;
+  font-family: 'Courier New', monospace;
+}
+
+.timetravel-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.speed-btn {
+  padding: 6px 12px;
+  background: #334155;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.speed-btn:hover {
+  color: #f1f5f9;
+  border-color: #64748b;
+}
+
+.speed-btn.active {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
+.timeline-slider-wrapper {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #334155;
+  margin-bottom: 24px;
+}
+
+.timeline-current-time {
+  text-align: center;
+  margin-bottom: 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #38bdf8, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.timeline-range-display {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.slider-container {
+  position: relative;
+  height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+input[type="range"].time-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #334155 0%, #334155 100%);
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="range"].time-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.25), 0 2px 8px rgba(0,0,0,0.4);
+  border: 2px solid #c084fc;
+  transition: transform 0.15s;
+}
+
+input[type="range"].time-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type="range"].time-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  cursor: pointer;
+  border: 2px solid #c084fc;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.25);
+}
+
+.event-markers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.event-marker {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.event-marker-start {
+  background: linear-gradient(180deg, transparent, #34d399, transparent);
+}
+
+.event-marker-end {
+  background: linear-gradient(180deg, transparent, #f87171, transparent);
+}
+
+.service-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #334155;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.waterfall-container {
+  background: #0f172a;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  overflow: hidden;
+}
+
+.waterfall-header {
+  display: grid;
+  grid-template-columns: 280px 1fr 120px;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.waterfall-body {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.waterfall-row {
+  display: grid;
+  grid-template-columns: 280px 1fr 120px;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  align-items: center;
+  transition: background 0.15s;
+  cursor: pointer;
+  position: relative;
+}
+
+.waterfall-row:hover {
+  background: rgba(51, 65, 85, 0.4);
+}
+
+.waterfall-row.future {
+  opacity: 0.3;
+}
+
+.waterfall-row.active-call {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.waterfall-row.active-call::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #a855f7, #7c3aed);
+  animation: rowPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes rowPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.waterfall-service {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.waterfall-depth-line {
+  display: flex;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.depth-indicator {
+  width: 8px;
+  height: 16px;
+  border-left: 1px dashed #475569;
+}
+
+.depth-indicator.root {
+  border-left: none;
+  width: 0;
+}
+
+.service-badge {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.service-name {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.operation-name {
+  font-size: 11px;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+}
+
+.waterfall-bar-area {
+  position: relative;
+  height: 24px;
+}
+
+.waterfall-bar {
+  position: absolute;
+  height: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.waterfall-bar-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 4px;
+}
+
+.waterfall-bar.completed .waterfall-bar-inner {
+  opacity: 0.9;
+}
+
+.waterfall-bar.active .waterfall-bar-inner {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    rgba(255,255,255,0.1) 6px,
+    rgba(255,255,255,0.1) 12px
+  );
+  animation: activeBar 1s linear infinite;
+}
+
+@keyframes activeBar {
+  0% { background-position: 0 0; }
+  100% { background-position: 24px 0; }
+}
+
+.waterfall-bar.pending {
+  border: 1px dashed #475569;
+  background: transparent;
+}
+
+.waterfall-duration {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  padding-right: 8px;
+}
+
+.waterfall-duration.success { color: #34d399; }
+.waterfall-duration.error { color: #f87171; }
+.waterfall-duration.future { color: #475569; }
+.waterfall-duration.active {
+  color: #c084fc;
+  animation: activeText 1s ease-in-out infinite;
+}
+
+@keyframes activeText {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.time-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #a855f7, #7c3aed);
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+}
+
+.time-now-line::before {
+  content: '▶';
+  position: absolute;
+  left: -6px;
+  top: -10px;
+  color: #c084fc;
+  font-size: 12px;
+  text-shadow: 0 0 6px rgba(168, 85, 247, 0.8);
+}
+
+.detail-panel {
+  margin-top: 24px;
+  background: #0f172a;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  overflow: hidden;
+}
+
+.detail-panel-header {
+  padding: 14px 20px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-close {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.detail-close:hover { color: #f1f5f9; }
+
+.detail-body {
+  padding: 20px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #e2e8f0;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.json-viewer {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #94a3b8;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.json-viewer .key { color: #38bdf8; }
+.json-viewer .string { color: #34d399; }
+.json-viewer .number { color: #fbbf24; }
+.json-viewer .boolean { color: #c084fc; }
+
+.playback-hint {
+  text-align: center;
+  padding: 16px;
+  font-size: 13px;
+  color: #94a3b8;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px dashed rgba(168, 85, 247, 0.3);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.playback-hint strong {
+  color: #c084fc;
+}
+
+.scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.03),
+    rgba(0, 0, 0, 0.03) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.scanline.active { opacity: 1; }
+
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.3s ease-out;
+  max-width: 400px;
+}
+
+.notification.success { border-left: 4px solid #34d399; }
+.notification.error { border-left: 4px solid #f87171; }
+.notification.info { border-left: 4px solid #38bdf8; }
+
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.notification-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+</style>
+</head>
+<body>
+
+<div class="scanline" id="scanline"></div>
+<div id="notifications"></div>
+
+<div class="header">
+  <h1>
+    🔮 RPC 调用链路追踪模拟器
+    <span class="timetravel-badge">⏱ TIME TRAVEL DEBUG MODE</span>
+  </h1>
+  <div class="subtitle">模拟微服务调用链路 · 支持时间旅行倒放/快进调试 · ServiceA → ServiceB → ServiceC → ServiceD</div>
+</div>
+
+<div class="container">
+
+  <div class="panel">
+    <div class="panel-title">模拟调用</div>
+    <div class="simulate-form">
+      <div class="form-group">
+        <label>Trace ID</label>
+        <input type="text" id="traceIdInput" placeholder="例如: trace-001 或自动生成">
+      </div>
+      <div class="form-group">
+        <label>自定义参数 (JSON)</label>
+        <input type="text" id="paramsInput" placeholder='{"userId": "123"}' value='{"userId": "user_001", "action": "placeOrder"}'>
+      </div>
+      <button class="btn btn-primary" id="simulateBtn" onclick="handleSimulate()">
+        🚀 生成调用链
+      </button>
+      <button class="btn btn-secondary" onclick="generateRandomTraceId()">🎲 随机ID</button>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="statsGrid" style="display:none;">
+    <div class="stat-card">
+      <div class="stat-label">总耗时</div>
+      <div><span class="stat-value" id="statDuration">0</span><span class="stat-unit">ms</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Span 数量</div>
+      <div><span class="stat-value" id="statSpans">0</span><span class="stat-unit">个</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">调用深度</div>
+      <div><span class="stat-value" id="statDepth">0</span><span class="stat-unit">层</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">状态</div>
+      <div><span class="stat-value" id="statStatus">-</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">查询 & 历史记录</div>
+    <div class="query-section">
+      <input type="text" id="queryTraceId" placeholder="输入 Trace ID 查询调用链...">
+      <button class="btn btn-success" onclick="handleQuery()">🔍 查询</button>
+      <button class="btn btn-secondary" onclick="loadTraceList()">📋 刷新列表</button>
+    </div>
+    <div class="trace-list" id="traceList"></div>
+  </div>
+
+  <div id="timelineSection" style="display:none;">
+    <div class="panel">
+      <div class="panel-title">⏱ 时间旅行调试器 - 调用链时间线</div>
+      
+      <div class="playback-hint">
+        <strong>时间旅行模式已激活！</strong> 拖动时间滑块或使用播放控制，可以查看任意时间点的调用状态。
+        <span style="opacity:0.7">已完成 / 进行中 / 尚未开始 的调用将以不同样式显示。</span>
+      </div>
+
+      <div class="timeline-header">
+        <div class="timeline-info">
+          <div class="timeline-info-title" id="timelineTraceTitle">-</div>
+          <div class="timeline-info-meta" id="timelineTraceMeta">-</div>
+        </div>
+        <div class="timetravel-controls">
+          <button class="btn btn-timetravel" onclick="timeTravelStart()" title="跳到开始">⏮</button>
+          <button class="btn btn-timetravel" id="playBtn" onclick="togglePlayback()" title="播放/暂停">▶</button>
+          <button class="btn btn-timetravel" onclick="timeTravelEnd()" title="跳到结束">⏭</button>
+          <div style="width:12px;"></div>
+          <button class="speed-btn" data-speed="0.5" onclick="setSpeed(0.5)">0.5x</button>
+          <button class="speed-btn active" data-speed="1" onclick="setSpeed(1)">1x</button>
+          <button class="speed-btn" data-speed="2" onclick="setSpeed(2)">2x</button>
+          <button class="speed-btn" data-speed="5" onclick="setSpeed(5)">5x</button>
+        </div>
+      </div>
+
+      <div class="timeline-slider-wrapper">
+        <div class="timeline-current-time">
+          <span id="currentTimeDisplay">0</span> <span style="color:#94a3b8;font-size:16px;font-weight:400;">/ </span>
+          <span id="totalTimeDisplay" style="color:#64748b;font-size:16px;font-weight:400;">0</span>
+          <span style="color:#64748b;font-size:14px;margin-left:4px;">ms</span>
+        </div>
+        <div class="timeline-range-display">
+          <span id="rangeStart">0 ms</span>
+          <span id="rangeEnd">0 ms</span>
+        </div>
+        <div class="slider-container">
+          <div class="event-markers" id="eventMarkers"></div>
+          <input type="range" class="time-slider" id="timeSlider" min="0" max="1000" value="1000" step="1">
+        </div>
+        <div class="service-legend" id="serviceLegend"></div>
+      </div>
+
+      <div class="waterfall-container">
+        <div class="waterfall-header">
+          <div>服务 / 操作</div>
+          <div>执行时间线</div>
+          <div style="text-align:right;padding-right:8px;">耗时</div>
+        </div>
+        <div class="waterfall-body" id="waterfallBody"></div>
+      </div>
+
+      <div id="detailPanel" class="detail-panel" style="display:none;">
+        <div class="detail-panel-header">
+          <div class="detail-panel-title" id="detailTitle">Span 详情</div>
+          <button class="detail-close" onclick="closeDetail()">×</button>
+        </div>
+        <div class="detail-body" id="detailBody"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SERVICE_COLORS = {
+  ServiceA: '#3b82f6',
+  ServiceB: '#10b981',
+  ServiceC: '#f59e0b',
+  ServiceD: '#8b5cf6'
+};
+
+let currentTraceData = null;
+let currentTimeMs = 0;
+let playbackTimer = null;
+let playbackSpeed = 1;
+let isPlaying = false;
+let selectedSpanId = null;
+
+function generateRandomTraceId() {
+  const id = 'trace-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+  document.getElementById('traceIdInput').value = id;
+}
+
+function showNotification(message, type = 'info') {
+  const container = document.getElementById('notifications');
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = 'notification ' + type;
+  el.innerHTML = `
+    <div class="notification-icon">${icons[type]}</div>
+    <div class="notification-text">${message}</div>
+  `;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'all 0.3s';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(120%)';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+function highlightJson(json) {
+  if (!json) return '';
+  let str = typeof json === 'string' ? json : JSON.stringify(json, null, 2);
+  return str
+    .replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:')
+    .replace(/: "([^"]*)"/g, ': <span class="string">"$1"</span>')
+    .replace(/: (\d+\.?\d*)/g, ': <span class="number">$1</span>')
+    .replace(/: (true|false)/g, ': <span class="boolean">$1</span>');
+}
+
+async function handleSimulate() {
+  const traceId = document.getElementById('traceIdInput').value.trim();
+  if (!traceId) {
+    showNotification('请输入 Trace ID', 'error');
+    return;
+  }
+  
+  const paramsRaw = document.getElementById('paramsInput').value.trim() || '{}';
+  let params = {};
+  try {
+    params = JSON.parse(paramsRaw);
+  } catch(e) {
+    showNotification('参数 JSON 格式错误', 'error');
+    return;
+  }
+  
+  const btn = document.getElementById('simulateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ 模拟调用中...';
+  
+  try {
+    const resp = await fetch('/api/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ traceId, ...params })
+    });
+    const data = await resp.json();
+    
+    if (data.code === 0) {
+      showNotification(`调用链生成成功！共 ${data.data.spanCount} 个 Span，总耗时 ${data.data.totalDuration}ms`, 'success');
+      document.getElementById('queryTraceId').value = traceId;
+      await loadTrace(traceId);
+      await loadTraceList();
+    } else {
+      showNotification(data.message || '生成失败', 'error');
+    }
+  } catch(e) {
+    showNotification('请求失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🚀 生成调用链';
+  }
+}
+
+async function handleQuery() {
+  const traceId = document.getElementById('queryTraceId').value.trim();
+  if (!traceId) {
+    showNotification('请输入 Trace ID', 'error');
+    return;
+  }
+  await loadTrace(traceId);
+}
+
+async function loadTrace(traceId) {
+  try {
+    const resp = await fetch('/api/trace/' + encodeURIComponent(traceId));
+    const data = await resp.json();
+    
+    if (data.code !== 0) {
+      showNotification(data.message || '查询失败', 'error');
+      return;
+    }
+    
+    currentTraceData = data.data;
+    renderTraceData();
+    document.getElementById('timelineSection').style.display = 'block';
+    document.getElementById('statsGrid').style.display = 'grid';
+    
+    timeTravelEnd();
+    
+  } catch(e) {
+    showNotification('查询失败: ' + e.message, 'error');
+  }
+}
+
+async function loadTraceList() {
+  try {
+    const resp = await fetch('/api/traces?page=1&pageSize=50');
+    const data = await resp.json();
+    const list = data.data?.list || [];
+    const container = document.getElementById('traceList');
+    
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div style="padding:30px;text-align:center;color:#64748b;font-size:13px;">
+          暂无历史记录，点击上方 "生成调用链" 开始模拟
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = list.map(t => `
+      <div class="trace-item" onclick="document.getElementById('queryTraceId').value='${t.trace_id}';loadTrace('${t.trace_id}');">
+        <div class="trace-item-id">${t.trace_id}</div>
+        <div class="trace-item-meta">
+          <span class="status-badge status-${t.status}">${t.status}</span>
+          <span>${t.total_duration}ms</span>
+          <span>${new Date(t.created_at).toLocaleTimeString()}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function renderTraceData() {
+  if (!currentTraceData) return;
+  
+  const { trace, timeline, totalTime, spanCount } = currentTraceData;
+  
+  document.getElementById('timelineTraceTitle').textContent = `Trace: ${trace.traceId}`;
+  document.getElementById('timelineTraceMeta').textContent = 
+    `创建时间: ${new Date(trace.createdAt).toLocaleString()}  |  Span总数: ${spanCount}  |  状态: ${trace.status.toUpperCase()}`;
+  
+  document.getElementById('statDuration').textContent = trace.totalDuration;
+  document.getElementById('statSpans').textContent = spanCount;
+  document.getElementById('statDepth').textContent = Math.max(...timeline.map(s => s.depth)) + 1;
+  const statusEl = document.getElementById('statStatus');
+  statusEl.textContent = trace.status.toUpperCase();
+  statusEl.style.color = trace.status === 'success' ? '#34d399' : (trace.status === 'error' ? '#f87171' : '#fbbf24');
+  
+  const slider = document.getElementById('timeSlider');
+  slider.max = Math.max(totalTime, 1);
+  document.getElementById('totalTimeDisplay').textContent = totalTime;
+  document.getElementById('rangeStart').textContent = '0 ms';
+  document.getElementById('rangeEnd').textContent = totalTime + ' ms';
+  
+  renderEventMarkers();
+  renderLegend();
+  renderWaterfall();
+}
+
+function renderEventMarkers() {
+  const { timeline, totalTime } = currentTraceData;
+  const container = document.getElementById('eventMarkers');
+  
+  let html = '';
+  timeline.forEach(s => {
+    const startPct = totalTime > 0 ? (s.relativeStart / totalTime) * 100 : 0;
+    const endPct = totalTime > 0 ? (s.relativeEnd / totalTime) * 100 : 0;
+    html += `<div class="event-marker event-marker-start" style="left:${startPct}%;"></div>`;
+    html += `<div class="event-marker event-marker-end" style="left:${endPct}%;"></div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderLegend() {
+  const container = document.getElementById('serviceLegend');
+  const services = new Set(currentTraceData.timeline.map(s => s.serviceName));
+  container.innerHTML = Array.from(services).map(s => `
+    <div class="legend-item">
+      <div class="legend-color" style="background:${SERVICE_COLORS[s] || '#64748b'};"></div>
+      <span>${s}</span>
+    </div>
+  `).join('');
+}
+
+function getSpanState(span, nowMs) {
+  if (nowMs < span.relativeStart) return 'future';
+  if (nowMs >= span.relativeStart && nowMs < span.relativeEnd) return 'active';
+  return 'completed';
+}
+
+function renderWaterfall() {
+  const { timeline, totalTime } = currentTraceData;
+  const container = document.getElementById('waterfallBody');
+  
+  container.innerHTML = timeline.map(span => {
+    const state = getSpanState(span, currentTimeMs);
+    const color = SERVICE_COLORS[span.serviceName] || '#64748b';
+    const barStart = totalTime > 0 ? (span.relativeStart / totalTime) * 100 : 0;
+    const barWidth = totalTime > 0 ? Math.max((span.duration / totalTime) * 100, 0.5) : 0;
+    
+    let displayDuration = '';
+    if (state === 'future') {
+      displayDuration = `${span.duration}ms`;
+    } else if (state === 'active') {
+      const elapsed = Math.max(0, currentTimeMs - span.relativeStart);
+      displayDuration = `${elapsed}ms / ${span.duration}ms`;
+    } else {
+      displayDuration = `${span.duration}ms`;
+    }
+    
+    const depthIndicators = [];
+    for (let i = 0; i < span.depth; i++) {
+      depthIndicators.push(`<div class="depth-indicator"></div>`);
+    }
+    if (span.depth === 0) depthIndicators.push(`<div class="depth-indicator root"></div>`);
+    
+    let barStyle = `left:${barStart}%; width:${barWidth}%;`;
+    let barClass = 'waterfall-bar ' + state;
+    
+    const nowOnThisRow = state === 'active' && totalTime > 0;
+    const nowLineLeft = totalTime > 0 ? (currentTimeMs / totalTime) * 100 : 0;
+    
+    return `
+      <div class="waterfall-row ${state} ${state === 'active' ? 'active-call' : ''}" 
+           onclick="showSpanDetail('${span.spanId}')"
+           data-span-id="${span.spanId}">
+        <div class="waterfall-service">
+          <div class="waterfall-depth-line">${depthIndicators.join('')}</div>
+          <span class="service-badge" style="background:${color};">
+            ${span.serviceName.replace('Service', 'S')}
+          </span>
+          <div style="min-width:0;">
+            <div class="service-name">${span.operationName}</div>
+            <div class="operation-name">${span.spanId.substring(0, 12)}...</div>
+          </div>
+        </div>
+        <div class="waterfall-bar-area">
+          <div class="${barClass}" style="${barStyle}">
+            <div class="waterfall-bar-inner" style="background:${color};"></div>
+          </div>
+          ${nowOnThisRow ? `<div class="time-now-line" style="left:${nowLineLeft}%;"></div>` : ''}
+        </div>
+        <div class="waterfall-duration ${state} ${span.status}">
+          ${state === 'active' ? '⏳ ' : (state === 'future' ? '⏸ ' : (span.status === 'error' ? '❌ ' : '✓ '))}
+          ${displayDuration}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  if (selectedSpanId) {
+    showSpanDetail(selectedSpanId);
+  }
+}
+
+function updateTimeDisplay() {
+  document.getElementById('currentTimeDisplay').textContent = Math.floor(currentTimeMs);
+  
+  const totalTime = currentTraceData.totalTime;
+  const nowOnAll = totalTime > 0 ? (currentTimeMs / totalTime) * 100 : 0;
+  
+  document.querySelectorAll('.waterfall-bar-area').forEach((area, idx) => {
+    let existing = area.querySelector('.time-now-line.global');
+    if (currentTimeMs > 0 && currentTimeMs < totalTime) {
+      if (!existing) {
+        existing = document.createElement('div');
+        existing.className = 'time-now-line global';
+        existing.style.zIndex = '5';
+        area.appendChild(existing);
+      }
+      existing.style.left = nowOnAll + '%';
+    } else if (existing) {
+      existing.remove();
+    }
+  });
+  
+  renderWaterfall();
+}
+
+function onTimeSliderChange() {
+  const slider = document.getElementById('timeSlider');
+  currentTimeMs = parseInt(slider.value);
+  updateTimeDisplay();
+}
+
+function togglePlayback() {
+  isPlaying = !isPlaying;
+  const btn = document.getElementById('playBtn');
+  const scanline = document.getElementById('scanline');
+  
+  if (isPlaying) {
+    btn.textContent = '⏸';
+    scanline.classList.add('active');
+    startPlayback();
+  } else {
+    btn.textContent = '▶';
+    scanline.classList.remove('active');
+    stopPlayback();
+  }
+}
+
+function startPlayback() {
+  stopPlayback();
+  
+  const totalTime = currentTraceData.totalTime;
+  const baseInterval = 50;
+  
+  playbackTimer = setInterval(() => {
+    currentTimeMs += (baseInterval * playbackSpeed) * (totalTime / 1000);
+    
+    if (currentTimeMs >= totalTime) {
+      currentTimeMs = totalTime;
+      stopPlayback();
+      isPlaying = false;
+      document.getElementById('playBtn').textContent = '▶';
+      document.getElementById('scanline').classList.remove('active');
+    }
+    
+    document.getElementById('timeSlider').value = Math.floor(currentTimeMs);
+    updateTimeDisplay();
+  }, baseInterval);
+}
+
+function stopPlayback() {
+  if (playbackTimer) {
+    clearInterval(playbackTimer);
+    playbackTimer = null;
+  }
+}
+
+function setSpeed(speed) {
+  playbackSpeed = speed;
+  document.querySelectorAll('.speed-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.speed * 10) === parseInt(speed * 10));
+  });
+  if (isPlaying) {
+    startPlayback();
+  }
+}
+
+function timeTravelStart() {
+  currentTimeMs = 0;
+  document.getElementById('timeSlider').value = 0;
+  if (isPlaying) togglePlayback();
+  updateTimeDisplay();
+  showNotification('⏱ 已倒带到调用开始前', 'info');
+}
+
+function timeTravelEnd() {
+  if (!currentTraceData) return;
+  currentTimeMs = currentTraceData.totalTime;
+  document.getElementById('timeSlider').value = currentTraceData.totalTime;
+  if (isPlaying) togglePlayback();
+  updateTimeDisplay();
+  showNotification('⏱ 已快进到调用结束', 'info');
+}
+
+function showSpanDetail(spanId) {
+  selectedSpanId = spanId;
+  const span = currentTraceData.timeline.find(s => s.spanId === spanId);
+  if (!span) return;
+  
+  const state = getSpanState(span, currentTimeMs);
+  const color = SERVICE_COLORS[span.serviceName] || '#64748b';
+  
+  const panel = document.getElementById('detailPanel');
+  document.getElementById('detailTitle').innerHTML = `
+    <span class="service-badge" style="background:${color};">${span.serviceName}</span>
+    ${span.operationName}
+    <span class="status-badge status-${span.status}" style="margin-left:8px;">
+      ${state === 'future' ? '未开始' : (state === 'active' ? '进行中' : (span.status === 'error' ? '失败' : '成功'))}
+    </span>
+  `;
+  
+  let reqData = span.requestData;
+  let resData = span.responseData;
+  if (state === 'future') {
+    reqData = null;
+    resData = null;
+  } else if (state === 'active') {
+    resData = null;
+  }
+  
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-item">
+        <div class="detail-label">Span ID</div>
+        <div class="detail-value">${span.spanId}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Parent Span ID</div>
+        <div class="detail-value">${span.parentSpanId || '<span style="color:#64748b;">(根节点)</span>'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Trace ID</div>
+        <div class="detail-value">${span.traceId}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">调用深度</div>
+        <div class="detail-value">第 ${span.depth + 1} 层</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">开始时间</div>
+        <div class="detail-value">${span.startTime} <span style="color:#64748b;">(${span.relativeStart}ms 相对)</span></div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">结束时间</div>
+        <div class="detail-value">${state === 'future' ? '<span style="color:#64748b;">(未开始)</span>' : 
+          (state === 'active' ? '<span style="color:#c084fc;">(进行中...)</span>' : 
+          span.endTime + ' <span style="color:#64748b;">(' + span.relativeEnd + 'ms 相对)</span>')}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">耗时</div>
+        <div class="detail-value" style="color:${state === 'active' ? '#c084fc' : (span.status === 'error' ? '#f87171' : '#34d399')};">
+          ${state === 'future' ? '<span style="color:#64748b;">(未开始)</span>' :
+            (state === 'active' ? (currentTimeMs - span.relativeStart) + 'ms / ' + span.duration + 'ms (预计)' :
+            span.duration + ' ms')}
+        </div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">时间点状态</div>
+        <div class="detail-value">
+          ${state === 'future' ? '🔮 尚未开始' : (state === 'active' ? '⚡ 正在执行' : '✅ 已完成')}
+        </div>
+      </div>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div class="detail-label" style="margin-bottom:8px;">请求数据</div>
+        <div class="json-viewer">${reqData ? highlightJson(reqData) : '<span style="color:#475569;">(暂无数据)</span>'}</div>
+      </div>
+      <div>
+        <div class="detail-label" style="margin-bottom:8px;">响应数据</div>
+        <div class="json-viewer">${resData ? highlightJson(resData) : '<span style="color:#475569;">(尚未返回)</span>'}</div>
+      </div>
+    </div>
+  `;
+  
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').style.display = 'none';
+  selectedSpanId = null;
+}
+
+document.getElementById('timeSlider').addEventListener('input', onTimeSliderChange);
+document.getElementById('traceIdInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSimulate();
+});
+document.getElementById('queryTraceId').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleQuery();
+});
+
+generateRandomTraceId();
+loadTraceList();
+</script>
+</body>
+</html>
