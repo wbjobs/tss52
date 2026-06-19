@@ -1,4 +1,10 @@
-const { generateId, createTrace, updateTrace, createSpan } = require('../repositories/traceRepository');
+const { generateId, createTrace, updateTrace, createSpan, createTraceWithSpansTransaction } = require('../repositories/traceRepository');
+
+let idCounter = 0;
+function safeGenerateId() {
+  const counter = (++idCounter).toString(36);
+  return Date.now().toString(36) + counter + Math.random().toString(36).substring(2, 8);
+}
 
 function randomDuration() {
   return Math.floor(Math.random() * 151) + 50;
@@ -32,14 +38,16 @@ const SERVICE_CONFIG = {
 };
 
 async function recordSpan(ctx, serviceName, operationName, fn) {
-  const spanId = generateId();
+  const spanId = safeGenerateId();
   const startTime = Date.now();
+  
+  const parentSpanId = ctx.currentSpanId;
   const depth = ctx.currentDepth;
   
   const spanData = {
     traceId: ctx.traceId,
     spanId: spanId,
-    parentSpanId: ctx.currentSpanId,
+    parentSpanId: parentSpanId,
     serviceName: serviceName,
     operationName: operationName,
     startTime: startTime,
@@ -51,10 +59,14 @@ async function recordSpan(ctx, serviceName, operationName, fn) {
     responseData: null
   };
   
-  const prevSpanId = ctx.currentSpanId;
-  const prevDepth = ctx.currentDepth;
-  ctx.currentSpanId = spanId;
-  ctx.currentDepth = depth + 1;
+  const childCtx = {
+    traceId: ctx.traceId,
+    currentSpanId: spanId,
+    currentDepth: depth + 1,
+    spans: ctx.spans,
+    requestParams: ctx.requestParams,
+    spanId: spanId
+  };
   
   let result;
   let error = null;
@@ -67,7 +79,7 @@ async function recordSpan(ctx, serviceName, operationName, fn) {
     };
     spanData.requestData = JSON.stringify(reqData);
     
-    result = await fn(ctx);
+    result = await fn(childCtx);
     
     const endTime = Date.now();
     spanData.endTime = endTime;
@@ -91,9 +103,6 @@ async function recordSpan(ctx, serviceName, operationName, fn) {
   
   ctx.spans.push(spanData);
   
-  ctx.currentSpanId = prevSpanId;
-  ctx.currentDepth = prevDepth;
-  
   if (error) throw error;
   return result;
 }
@@ -103,7 +112,7 @@ async function callServiceD(ctx) {
     Math.floor(Math.random() * SERVICE_CONFIG.ServiceD.operations.length)
   ];
   
-  return recordSpan(ctx, 'ServiceD', op, async () => {
+  return recordSpan(ctx, 'ServiceD', op, async (childCtx) => {
     await sleep(randomDuration());
     const results = ['NotificationSent', 'ThirdPartyOK', 'EmailDelivered'];
     return results[Math.floor(Math.random() * results.length)];
@@ -115,12 +124,12 @@ async function callServiceC(ctx) {
     Math.floor(Math.random() * SERVICE_CONFIG.ServiceC.operations.length)
   ];
   
-  return recordSpan(ctx, 'ServiceC', op, async () => {
+  return recordSpan(ctx, 'ServiceC', op, async (childCtx) => {
     await sleep(randomDuration());
     
     const needExternal = Math.random() > 0.5;
     if (needExternal) {
-      await callServiceD(ctx);
+      await callServiceD(childCtx);
     }
     
     const results = ['DBQuerySuccess', 'UserFound', 'OrderListRetrieved'];
@@ -133,23 +142,23 @@ async function callServiceB(ctx) {
     Math.floor(Math.random() * SERVICE_CONFIG.ServiceB.operations.length)
   ];
   
-  return recordSpan(ctx, 'ServiceB', op, async () => {
+  return recordSpan(ctx, 'ServiceB', op, async (childCtx) => {
     await sleep(randomDuration());
     
     const callMode = Math.random();
     
     if (callMode < 0.4) {
-      const resultC = await callServiceC(ctx);
-      await callServiceD(ctx);
+      const resultC = await callServiceC(childCtx);
+      await callServiceD(childCtx);
       return `Processed: ${resultC}`;
     } else if (callMode < 0.8) {
       const [resultC, resultD] = await Promise.all([
-        callServiceC(ctx),
-        callServiceD(ctx)
+        callServiceC(childCtx),
+        callServiceD(childCtx)
       ]);
       return `ParallelOK: ${resultC} + ${resultD}`;
     } else {
-      await callServiceC(ctx);
+      await callServiceC(childCtx);
       return 'SimpleProcess';
     }
   });
@@ -160,14 +169,14 @@ async function callServiceA(ctx) {
     Math.floor(Math.random() * SERVICE_CONFIG.ServiceA.operations.length)
   ];
   
-  return recordSpan(ctx, 'ServiceA', op, async () => {
+  return recordSpan(ctx, 'ServiceA', op, async (childCtx) => {
     await sleep(randomDuration());
     
     const callCount = Math.floor(Math.random() * 2) + 1;
     const results = [];
     
     for (let i = 0; i < callCount; i++) {
-      results.push(await callServiceB(ctx));
+      results.push(await callServiceB(childCtx));
     }
     
     return `FinalResult: [${results.join(', ')}]`;
@@ -185,8 +194,6 @@ async function simulateCallChain(traceId, requestParams = {}) {
     requestParams: requestParams
   };
   
-  await createTrace(traceId, 0, 'running');
-  
   let finalResult;
   let overallStatus = 'success';
   
@@ -200,11 +207,7 @@ async function simulateCallChain(traceId, requestParams = {}) {
   const endTime = Date.now();
   const totalDuration = endTime - startTime;
   
-  await updateTrace(traceId, totalDuration, overallStatus);
-  
-  for (const span of ctx.spans) {
-    await createSpan(span);
-  }
+  await createTraceWithSpansTransaction(traceId, totalDuration, overallStatus, ctx.spans);
   
   return {
     traceId: traceId,
