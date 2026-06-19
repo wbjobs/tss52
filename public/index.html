@@ -824,6 +824,258 @@ input[type="range"].time-slider::-moz-range-thumb {
   color: #c084fc;
 }
 
+.replay-hint {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(56, 189, 248, 0.1));
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.replay-hint strong {
+  color: #c084fc;
+}
+
+.replay-quick-btns {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.replay-summary {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid #334155;
+}
+
+.replay-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #334155;
+}
+
+.replay-summary-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.replay-time-indicator {
+  font-family: 'Courier New', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #38bdf8, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.replay-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.replay-stat {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.replay-stat-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.replay-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+}
+
+.replay-stat-value.pending { color: #64748b; }
+.replay-stat-value.running { color: #c084fc; }
+.replay-stat-value.completed { color: #34d399; }
+.replay-stat-value.error { color: #f87171; }
+
+.replay-position-bar {
+  height: 6px;
+  background: #334155;
+  border-radius: 3px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.replay-position-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #a855f7);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.replay-list {
+  background: #0f172a;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  overflow: hidden;
+}
+
+.replay-list-header {
+  display: grid;
+  grid-template-columns: 40px 200px 1fr 100px 1fr;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.replay-list-body {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.replay-row {
+  display: grid;
+  grid-template-columns: 40px 200px 1fr 100px 1fr;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  align-items: center;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.replay-row:hover {
+  background: rgba(51, 65, 85, 0.4);
+}
+
+.replay-status-icon {
+  text-align: center;
+  font-size: 18px;
+}
+
+.replay-service {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.replay-service-name {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.replay-operation {
+  font-size: 11px;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+}
+
+.replay-progress {
+  position: relative;
+  height: 20px;
+}
+
+.replay-progress-bar {
+  height: 6px;
+  background: #334155;
+  border-radius: 3px;
+  overflow: hidden;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+}
+
+.replay-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.replay-progress-fill.pending { background: #475569; }
+.replay-progress-fill.running { 
+  background: repeating-linear-gradient(
+    45deg,
+    #a855f7,
+    #a855f7 6px,
+    #7c3aed 6px,
+    #7c3aed 12px
+  );
+  background-size: 24px 24px;
+  animation: progressStripes 1s linear infinite;
+}
+.replay-progress-fill.completed { background: #34d399; }
+.replay-progress-fill.error { background: #f87171; }
+
+@keyframes progressStripes {
+  0% { background-position: 0 0; }
+  100% { background-position: 24px 0; }
+}
+
+.replay-time {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.replay-time.pending { color: #64748b; }
+.replay-time.running { color: #c084fc; }
+.replay-time.completed { color: #34d399; }
+.replay-time.error { color: #f87171; }
+
+.replay-result {
+  font-size: 12px;
+  color: #94a3b8;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replay-result.pending { color: #475569; font-style: italic; }
+.replay-result.running { color: #c084fc; }
+.replay-result.completed { color: #34d399; }
+.replay-result.error { color: #f87171; }
+
+.replay-active-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
 .scanline {
   position: fixed;
   top: 0;
@@ -948,6 +1200,28 @@ input[type="range"].time-slider::-moz-range-thumb {
       <button class="btn btn-secondary" onclick="loadTraceList()">📋 刷新列表</button>
     </div>
     <div class="trace-list" id="traceList"></div>
+  </div>
+
+  <div class="panel" id="replayPanel" style="display:none;">
+    <div class="panel-title">⏱ 时间回溯 - 按时间点重放调用链</div>
+    <div class="replay-hint">
+      <strong>🔮 时间旅行模式！</strong> 输入目标时间点，查看调用链在那个时刻的状态，每个节点的耗时和调用结果。
+    </div>
+    <div class="query-section">
+      <input type="text" id="replayTraceId" placeholder="Trace ID (从上方选择或输入)">
+      <input type="text" id="replayTargetTime" placeholder="目标时间：123(相对ms) / 2026-06-20 10:30:15.123 / 时间戳">
+      <button class="btn btn-timetravel" onclick="handleReplay()">⏱ 时间回溯</button>
+      <button class="btn btn-secondary" onclick="fillReplayWithCurrent()" title="使用当前查看的Trace ID">📋 填入当前</button>
+    </div>
+    <div class="replay-quick-btns">
+      <span style="color:#94a3b8;font-size:12px;">快捷时间点：</span>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="quickReplay(0)">0ms (开始)</button>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="quickReplay('25%')">25%</button>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="quickReplay('50%')">50%</button>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="quickReplay('75%')">75%</button>
+      <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="quickReplay('100%')">100% (结束)</button>
+    </div>
+    <div id="replayResult" style="margin-top:16px;display:none;"></div>
   </div>
 
   <div id="timelineSection" style="display:none;">
@@ -1130,6 +1404,8 @@ async function loadTrace(traceId) {
     renderTraceData();
     document.getElementById('timelineSection').style.display = 'block';
     document.getElementById('statsGrid').style.display = 'grid';
+    document.getElementById('replayPanel').style.display = 'block';
+    document.getElementById('replayTraceId').value = traceId;
     
     timeTravelEnd();
     
@@ -1483,6 +1759,230 @@ function showSpanDetail(spanId) {
 function closeDetail() {
   document.getElementById('detailPanel').style.display = 'none';
   selectedSpanId = null;
+}
+
+function fillReplayWithCurrent() {
+  if (currentTraceData) {
+    document.getElementById('replayTraceId').value = currentTraceData.trace.traceId;
+  } else {
+    const queryId = document.getElementById('queryTraceId').value;
+    if (queryId) {
+      document.getElementById('replayTraceId').value = queryId;
+    } else {
+      showNotification('请先查询或选择一个Trace', 'info');
+    }
+  }
+}
+
+async function quickReplay(percent) {
+  const traceId = document.getElementById('replayTraceId').value.trim();
+  if (!traceId) {
+    showNotification('请先输入Trace ID', 'error');
+    return;
+  }
+  
+  let targetTime;
+  if (typeof percent === 'string' && percent.endsWith('%')) {
+    const pct = parseInt(percent) / 100;
+    try {
+      const resp = await fetch('/api/trace/' + encodeURIComponent(traceId));
+      const data = await resp.json();
+      if (data.code === 0) {
+        const totalTime = data.data.totalTime;
+        targetTime = Math.floor(totalTime * pct);
+      } else {
+        showNotification(data.message || '查询失败', 'error');
+        return;
+      }
+    } catch (e) {
+      showNotification('查询失败: ' + e.message, 'error');
+      return;
+    }
+  } else {
+    targetTime = percent;
+  }
+  
+  document.getElementById('replayTargetTime').value = targetTime;
+  await handleReplay();
+}
+
+async function handleReplay() {
+  const traceId = document.getElementById('replayTraceId').value.trim();
+  const targetTime = document.getElementById('replayTargetTime').value.trim();
+  
+  if (!traceId) {
+    showNotification('请输入 Trace ID', 'error');
+    return;
+  }
+  
+  if (!targetTime) {
+    showNotification('请输入目标时间点', 'error');
+    return;
+  }
+  
+  showNotification(`⏱ 正在回溯到 ${targetTime}...`, 'info');
+  
+  try {
+    const resp = await fetch('/api/trace/' + encodeURIComponent(traceId) + '/replay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetTime: targetTime })
+    });
+    
+    const data = await resp.json();
+    
+    if (data.code !== 0) {
+      showNotification(data.message || '回溯失败', 'error');
+      return;
+    }
+    
+    renderReplayResult(data.data);
+    showNotification('时间回溯完成！', 'success');
+    
+  } catch (e) {
+    showNotification('请求失败: ' + e.message, 'error');
+  }
+}
+
+function getStatusIcon(state) {
+  if (state === 'pending') return '⏸';
+  if (state === 'running') return '⚡';
+  return '✓';
+}
+
+function getTimeDisplay(span) {
+  if (span.state === 'pending') {
+    return `<span class="replay-time pending">--</span>`;
+  } else if (span.state === 'running') {
+    return `<span class="replay-time running">${span.elapsedMsAtTarget} / ${span.duration}ms</span>`;
+  } else {
+    return `<span class="replay-time ${span.status}">${span.duration}ms</span>`;
+  }
+}
+
+function getResultDisplay(span) {
+  if (span.state === 'pending') {
+    return `<span class="replay-result pending">(未开始)</span>`;
+  } else if (span.state === 'running') {
+    return `<span class="replay-result running">(执行中... ${span.percentComplete}%)</span>`;
+  } else if (span.status === 'error') {
+    return `<span class="replay-result error">❌ ${span.resultAtTargetTime || '执行失败'</span>`;
+  } else {
+    const result = span.resultAtTargetTime || '完成';
+    return `<span class="replay-result completed">${result}</span>`;
+  }
+}
+
+function renderReplayResult(replayData) {
+  const { trace, replayInfo, stats, activeSpan, spans } = replayData;
+  
+  document.getElementById('replayPanel').style.display = 'block';
+  
+  const container = document.getElementById('replayResult');
+  container.style.display = 'block';
+  
+  const positionBadge = replayInfo.timelinePosition === 'before_start' ? '调用开始前' :
+    replayInfo.timelinePosition === 'after_end' ? '调用结束后' : '调用进行中';
+  
+  container.innerHTML = `
+    <div class="replay-summary">
+      <div class="replay-summary-header">
+        <div>
+          <div class="replay-summary-title">
+            🔮 时间回溯结果
+            <span class="replay-active-badge">${positionBadge}</span>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:6px;font-family:'Courier New',monospace;">
+            Trace: ${trace.traceId}
+          </div>
+        </div>
+        <div class="replay-time-indicator">
+          ${replayInfo.targetRelativeMs} ms
+          <span style="font-size:12px;color:#94a3b8;font-weight:400;"> / ${replayInfo.totalTraceDurationMs} ms</span>
+        </div>
+      </div>
+      
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;">
+        目标时间: ${replayInfo.targetAbsoluteTimeStr}
+        (${replayInfo.timeType === 'relative' ? '相对时间' : '绝对时间'})
+        · 完成度: ${Math.round(replayInfo.percentOfTotal)}%
+      </div>
+      
+      <div class="replay-stats">
+        <div class="replay-stat">
+          <div class="replay-stat-label">待启动</div>
+          <div class="replay-stat-value pending">${stats.pendingCount}</div>
+        </div>
+        <div class="replay-stat">
+          <div class="replay-stat-label">进行中</div>
+          <div class="replay-stat-value running">${stats.runningCount}</div>
+        </div>
+        <div class="replay-stat">
+          <div class="replay-stat-label">已完成</div>
+          <div class="replay-stat-value completed">${stats.completedCount}</div>
+        </div>
+        <div class="replay-stat">
+          <div class="replay-stat-label">异常</div>
+          <div class="replay-stat-value error">${stats.errorCount}</div>
+        </div>
+      </div>
+      
+      <div class="replay-position-bar">
+        <div class="replay-position-fill" style="width:${Math.min(100, Math.max(0, replayInfo.percentOfTotal)}%;"></div>
+      </div>
+      
+      ${activeSpan ? `
+        <div style="margin-top:16px;padding:12px;background:rgba(168,85,247,0.1);border-radius:8px;border:1px solid rgba(168,85,247,0.3);">
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">⏱ 当前正在执行</div>
+          <div style="font-size:14px;color:#e2e8f0;font-weight:600;">
+            <span class="service-badge" style="background:${SERVICE_COLORS[activeSpan.serviceName] || '#64748b'};">${activeSpan.serviceName}</span>
+            ${activeSpan.operationName}
+            <span style="margin-left:8px;color:#c084fc;font-family:'Courier New',monospace;font-size:12px;">
+              ${activeSpan.elapsedMs}ms / ${activeSpan.totalDurationMs}ms (${activeSpan.percentComplete}%)
+            </span>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+    
+    <div class="replay-list">
+      <div class="replay-list-header">
+        <div></div>
+        <div>服务 / 操作</div>
+        <div>执行进度</div>
+        <div style="text-align:center;">耗时</div>
+        <div>当时结果</div>
+      </div>
+      <div class="replay-list-body">
+        ${spans.map(span => {
+          const color = SERVICE_COLORS[span.serviceName] || '#64748b';
+          const depthPad = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(span.depth);
+          return `
+            <div class="replay-row" onclick='${JSON.stringify(span).replace(/'/g, "&apos;")}'>
+              <div class="replay-status-icon">${getStatusIcon(span.state)}</div>
+              <div class="replay-service">
+                <div class="replay-service-name">
+                  ${depthPad}
+                  <span class="service-badge" style="background:${color};">${span.serviceName.replace('Service', 'S')}</span>
+                  ${span.serviceName}.${span.operationName}
+                </div>
+                <div class="replay-operation">${span.spanId.substring(0, 14)}...</div>
+              </div>
+              <div class="replay-progress">
+                <div class="replay-progress-bar">
+                  <div class="replay-progress-fill ${span.state} ${span.status}" style="width:${span.percentComplete}%;"></div>
+                </div>
+              </div>
+              <div>${getTimeDisplay(span)}</div>
+              <div>${getResultDisplay(span)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 document.getElementById('timeSlider').addEventListener('input', onTimeSliderChange);
